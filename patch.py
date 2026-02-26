@@ -136,6 +136,80 @@ def execute_command(cmd, check_for_sudo=False, force_interactive=False):
     except Exception as e:
         return None, str(e), False
 
+def get_file_system_context(cmd):
+    """Gather information about the current directory and file structure"""
+    context = []
+    
+    try:
+        # Current working directory
+        cwd = os.getcwd()
+        context.append(f"Current working directory: {cwd}")
+        
+        # List contents of current directory (first level only, max 20 items)
+        try:
+            result = subprocess.run(['ls', '-1'], capture_output=True, text=True, cwd=cwd)
+            if result.returncode == 0:
+                items = result.stdout.strip().split('\n')[:20]
+                context.append(f"Contents of current directory ({len(items)} items shown):")
+                context.extend([f"  - {item}" for item in items if item])
+        except:
+            pass
+        
+        # If command involves /home/, list /home/ to show available users
+        if '/home/' in cmd.lower():
+            try:
+                result = subprocess.run(['ls', '-1', '/home/'], capture_output=True, text=True)
+                if result.returncode == 0:
+                    users = result.stdout.strip().split('\n')[:20]
+                    context.append(f"Available users in /home/:")
+                    context.extend([f"  - {user}" for user in users if user])
+            except:
+                pass
+        
+        # If command involves cd to a path, check if that directory exists
+        if 'cd ' in cmd.lower():
+            import shlex
+            parts = shlex.split(cmd)
+            for i, part in enumerate(parts):
+                if part == 'cd' and i + 1 < len(parts):
+                    target_path = parts[i + 1]
+                    if os.path.isdir(target_path):
+                        context.append(f"Target directory EXISTS: {target_path}")
+                        try:
+                            result = subprocess.run(['ls', '-1', target_path], capture_output=True, text=True)
+                            if result.returncode == 0:
+                                items = result.stdout.strip().split('\n')[:20]
+                                context.append(f"Contents of {target_path}:")
+                                context.extend([f"  - {item}" for item in items if item])
+                        except:
+                            pass
+                    else:
+                        context.append(f"Target directory DOES NOT EXIST: {target_path}")
+                    break
+        
+        # If command involves accessing a file, check if parent directory exists
+        import shlex
+        parts = shlex.split(cmd)
+        for part in parts:
+            if os.path.isfile(part):
+                context.append(f"File EXISTS: {part}")
+            elif not part.startswith('-') and '/' in part:
+                parent_dir = os.path.dirname(part)
+                if parent_dir and os.path.isdir(parent_dir):
+                    try:
+                        result = subprocess.run(['ls', '-1', parent_dir], capture_output=True, text=True)
+                        if result.returncode == 0:
+                            items = result.stdout.strip().split('\n')[:20]
+                            context.append(f"Contents of parent directory {parent_dir}:")
+                            context.extend([f"  - {item}" for item in items if item])
+                    except:
+                        pass
+        
+    except Exception as e:
+        context.append(f"Error gathering file system context: {str(e)}")
+    
+    return '\n'.join(context)
+
 def show_blinking_cursor():
     cursor_chars = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
     i = 0
@@ -266,10 +340,13 @@ def ask_openai_for_fix(error, cmd, previous_error=None, previous_fix=None):
     app_info = get_app_info(cmd)
     error_type = categorize_error_type(error, cmd)
     
+    # Gather file system context
+    file_system_context = get_file_system_context(cmd)
+    
     system_prompt = """You are a helpful CLI assistant. Fix shell commands based on errors.
 
 IMPORTANT CONTEXT RULES:
-1. ALWAYS read the provided: Platform, Application, and Error type
+1. ALWAYS read the provided: Platform, Application, Error type, and File system context
 2. ALWAYS suggest PLATFORM-APPROPRIATE fixes:
    - macOS: Use open-a, launchctl, brew for packages
    - Linux: Use systemctl, service, apt, yum, dnf for services
@@ -278,7 +355,15 @@ IMPORTANT CONTEXT RULES:
    - Docker: macOS uses open-a Docker Desktop app, Linux uses systemctl start docker
    - Git: Platform-agnostic (works everywhere)
    - Package managers: Use platform-appropriate tools
-  4. If retrying a previously failed suggestion, CLEARLY state it did NOT work
+   4. If retrying a previously failed suggestion, CLEARLY state it did NOT work
+5. CRITICAL: Use the file system context to understand:
+   - Where the user currently is (current working directory)
+   - What directories/files actually exist
+   - What is available in the current and target directories
+   - For path-related errors (cd, ls, file access), check if the path exists and suggest:
+     * Correct path if directory exists
+     * Suggest creating directory if it doesn't exist make sense
+     * Suggest using current directory or parent directory if target doesn't exist
 
 Return ONLY the fixed command, confidence percentage (1-100), reason, and explanation in this exact format: command:::confidence:::reason:::explanation.
 
@@ -313,6 +398,7 @@ Example: git push:::95:::typo fix:::You typed git push incorrectly, which caused
         
         context_parts.append(f"Error message: {error}\n")
         context_parts.append("Please suggest a DIFFERENT, platform-appropriate solution.\n")
+        context_parts.append(f"\n--- FILE SYSTEM CONTEXT ---\n{file_system_context}\n")
         user_msg = "".join(context_parts)
     else:
         # FIRST attempt: no previous suggestions
@@ -326,6 +412,7 @@ Example: git push:::95:::typo fix:::You typed git push incorrectly, which caused
         if error_type != 'other':
             context_parts.append(f"Error type: {error_type}\n")
             context_parts.append("Suggested approach: Focus on error type related issues.\n")
+        context_parts.append(f"\n--- FILE SYSTEM CONTEXT ---\n{file_system_context}\n")
         user_msg = "".join(context_parts)
     
     global stop_cursor
