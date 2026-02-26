@@ -153,37 +153,33 @@ def is_command_installed(command):
     
     return False
 
+def is_command_or_binary(word):
+    """Check if a word looks like a command or binary name"""
+    if len(word) <= 1: return False
+    if word.startswith('-'): return False
+    if word in ['sudo', 'python', 'python3', 'bash', 'sh', 'cd', 'echo', 'echo', '||', '&&', ';']: return False
+    if not word.isalnum() and not (''.join(c for c in word if c.isalnum()).isalnum()): return False
+    return True
+
 def get_file_system_context(cmd):
     """Gather information about the current directory and file structure"""
     context = []
     
     try:
-        # Current working directory
-        cwd = os.getcwd()
-        context.append(f"Current working directory: {cwd}")
-        
-        # Detect binaries/commands in the user's command
         import shlex
         parts = shlex.split(cmd)
-        for part in parts:
-            # Skip flags and common built-ins
-            if part.startswith('-') or part in ['sudo', 'python', 'python3', 'bash', 'sh', 'cd', 'echo', '||', '&&', ';']:
-                continue
-            
-            # Check if this is a command/binary
-            if '/' not in part and len(part) > 1 and part.isalnum():
-                installed = is_command_installed(part)
-                context.append(f"Command '{part}': {'INSTALLED' if installed else 'NOT INSTALLED on this system'}")
         
-        # List contents of current directory (first level only, max 20 items)
-        try:
-            result = subprocess.run(['ls', '-1'], capture_output=True, text=True, cwd=cwd)
-            if result.returncode == 0:
-                items = result.stdout.strip().split('\n')[:20]
-                context.append(f"Contents of current directory ({len(items)} items shown):")
-                context.extend([f"  - {item}" for item in items if item])
-        except:
-            pass
+        # Detect binaries/commands in the user's command (FIRST - most important)
+        context.append("--- COMMAND INSTALLATION STATUS ---")
+        for part in parts:
+            if is_command_or_binary(part):
+                installed = is_command_installed(part)
+                status = "✓ INSTALLED" if installed else "✗ NOT INSTALLED - MUST INSTALL FIRST"
+                context.append(f"  {status}: {part}")
+        
+        # Current working directory
+        cwd = os.getcwd()
+        context.append(f"\nCurrent working directory: {cwd}")
         
         # If command involves /home/, list /home/ to show available users
         if '/home/' in cmd.lower():
