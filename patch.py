@@ -44,7 +44,48 @@ def is_pipe_to_shell(cmd):
             return True
     return False
 
-def execute_command(cmd, check_for_sudo=False):
+def is_interactive_command(cmd):
+    """Detect if command requires interactive user input"""
+    interactive_commands = [
+        'adduser', 'useradd', 'passwd', 'chpasswd',
+        'mysql', 'psql', 'sqlite3', 'mongosh', 'redis-cli',
+        'vim', 'nano', 'vi', 'emacs',
+        'less', 'more', 'top', 'htop',
+        'ssh', 'telnet', 'ftp', 'sftp',
+        'sudo apt-get install', 'sudo dnf install', 'sudo yum install',
+    ]
+    cmd_lower = cmd.lower()
+    for base_cmd in interactive_commands:
+        # Check if the base command is present (handle sudo, spaces)
+        patterns = [
+            f" {base_cmd} ",  # Command with spaces around
+            f"^{base_cmd} ",   # Command at start
+            f" {base_cmd}$",   # Command at end
+            f" {base_cmd} ",   # Command in middle
+        ]
+        for pattern in patterns:
+            if pattern.strip() in cmd_lower or cmd_lower.startswith(pattern.strip()):
+                return True
+    return False
+
+def get_non_interactive_alternative(cmd):
+    """Provide non-interactive alternatives for interactive commands"""
+    cmd_lower = cmd.lower()
+    alternatives = {
+        'adduser': [
+            'adduser --disabled-password --gecos "" {user}',
+            'useradd -m {user}'
+        ],
+        'useradd': ['useradd -m {user}'],
+        'mysql': ['mysql -e "{query}"', 'mysql -BNe "{query}"'],
+        'psql': ['psql -c "{query}"'],
+    }
+    for base_cmd, alts in alternatives.items():
+        if base_cmd in cmd_lower:
+            return alts
+    return None
+
+def execute_command(cmd, check_for_sudo=False, force_interactive=False):
     print(f'\n$ {cmd}')
     
     # Check for sudo
@@ -52,7 +93,7 @@ def execute_command(cmd, check_for_sudo=False):
         response = input('[!] Warning: This command uses sudo. Continue? (y/n): ')
         if response.lower() != 'y':
             print('[!] Aborted.')
-            return None, None
+            return None, None, False
     
     # Check for pipe-to-shell execution
     if is_pipe_to_shell(cmd):
@@ -62,13 +103,38 @@ def execute_command(cmd, check_for_sudo=False):
         response = input('[!] Continue anyway? (y/n): ')
         if response.lower() != 'y':
             print('[!] Aborted.')
-            return None, None
+            return None, None, False
+    
+    # Check for interactive command
+    is_interactive = is_interactive_command(cmd)
+    if is_interactive and not force_interactive:
+        print('[!] WARNING: This command is INTERACTIVE and requires manual user input.')
+        print('[!] The tool will not handle interactive prompts.')
+        print('[!] You must interact with the command manually.')
+        
+        alternatives = get_non_interactive_alternative(cmd)
+        if alternatives:
+            print('\n[+] Non-interactive alternatives available:')
+            for i, alt in enumerate(alternatives, 1):
+                print(f'  [{i}] {alt}')
+            print()
+        
+        response = input('[!] Continue anyway and handle prompts manually? (y/n): ')
+        if response.lower() != 'y':
+            print('[!] Aborted.')
+            return None, None, False
     
     try:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-        return result.returncode, result.stdout + result.stderr
+        if is_interactive:
+            # Interactive commands need to run without capturing output
+            result = subprocess.run(cmd, shell=True, capture_output=False)
+            return result.returncode, '', True  # is_interactive flag
+        else:
+            # Non-interactive commands: capture output for AI analysis
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            return result.returncode, result.stdout + result.stderr, False
     except Exception as e:
-        return None, str(e)
+        return None, str(e), False
 
 def show_blinking_cursor():
     cursor_chars = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
@@ -449,11 +515,37 @@ def main():
     
     while attempt < max_attempts:
         attempt += 1
-        returncode, output = execute_command(cmd, check_for_sudo=True)
+        returncode, output, is_interactive = execute_command(cmd, check_for_sudo=True)
+        
+        # If user aborted early (returncode is None), exit
+        if returncode is None:
+            return
         
         if returncode == 0:
             print('[+] Success!')
-            print(output)
+            if output:
+                print(output)
+            return
+        
+        # For interactive commands, we can't analyze the output safely
+        if is_interactive:
+            print('[!] Interactive command failed or was interrupted.')
+            print('[!] Cannot automatically fix interactive commands.')
+            response = input('[!] Try a non-interactive alternative? (y/n): ')
+            if response.lower() == 'y':
+                alternatives = get_non_interactive_alternative(cmd)
+                if alternatives:
+                    print('\n[+] Available alternatives:')
+                    for i, alt in enumerate(alternatives, 1):
+                        print(f'  [{i}] {alt}')
+                    choice = input('[?] Select alternative (or Enter custom): ')
+                    if choice.isdigit() and 1 <= int(choice) <= len(alternatives):
+                        cmd = alternatives[int(choice) - 1]
+                        continue
+                    else:
+                        cmd = choice
+                        continue
+            print('[!] Exiting.')
             return
         
         print(f'\n[-] Error (attempt {attempt}/{max_attempts}):')
