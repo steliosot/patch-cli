@@ -46,13 +46,18 @@ else
     exit 1
 fi
 
-# Download patch CLI files
+# Setup patch CLI files
 echo ""
-echo "[3/5] Downloading patch CLI..."
-curl -fsSL -o patch.py https://raw.githubusercontent.com/steliosot/patch-cli/main/patch.py
-curl -fsSL -o docker_test_suite.py https://raw.githubusercontent.com/steliosot/patch-cli/main/docker_test_suite.py
+echo "[3/5] Setting up patch CLI..."
+if [ -f "patch.py" ] && [ -f "docker_test_suite.py" ]; then
+    echo "  Files already exist, skipping download"
+else
+    echo "  Downloading from GitHub..."
+    curl -fsSL -o patch.py https://raw.githubusercontent.com/steliosot/patch-cli/main/patch.py
+    curl -fsSL -o docker_test_suite.py https://raw.githubusercontent.com/steliosot/patch-cli/main/docker_test_suite.py
+fi
 chmod +x patch.py docker_test_suite.py
-echo "✓ Files downloaded"
+echo "✓ Files ready"
 
 # Create virtual environment
 echo ""
