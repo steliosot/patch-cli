@@ -15,16 +15,7 @@ A command-line tool that automatically fixes broken shell commands using OpenAI 
 ## Quick Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/[username]/patch/main/install.sh | bash
-```
-
-**Or install manually:**
-
-```bash
-git clone https://github.com/[username]/patch.git
-cd patch
-python3 -m pip install openai tqdm
-chmod +x patch.py
+git clone https://github.com/steliosot/patch-cli.git && cd patch-cli && bash install.sh
 ```
 
 ---
