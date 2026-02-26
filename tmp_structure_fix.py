@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+# Simulating what the fix should look like
+
+print("This demo explains the enhanced retry system improvements")
+print()
+
+print("=" * 60)
+print("   REWRITING ask_openai_for_fix Function")
+print("=" * 60)
+print()
+
+print("The issue: 'else:' statement is orphaned (no matching 'if')")
+print()
+print("Current broken structure:")
+print("  if previous_error and ...:")
+print("      context_parts.append(...)")
+print("      user_msg = '\\n'.join(context_parts)")
+print("  'else:'  ← ORPHANED! No matching 'if'!")
+print()
+
+print("=" * 30, " PROPER STRUCTURE ", "=" * 30)
+print()
+
+print("CORRECT structure:")
+print()
+print("  if previous_error and ...:")
+print("      # RETRY case context")
+print("      context_parts = [...]")
+print("      user_msg = '\\n'.join(context_parts)")
+print("  else:")
+print("      # FIRST attempt context")
+print("      context_parts = [...]")
+print("      user_msg = '\\n'.join(context_parts)")
+print()
+print("  # COMMON code")
+print("  global stop_cursor")
+print("  ...")
+print()
+
+print("=" * 30, " FIX REQUIRED ", "=" * 30)
+print()
+
+print("The 'else:' should be OUTSIDE the if/else, like this:")
+print()
+print("def ask_openai_for_fix(...):")
+print("    # ...")
+print("    if previous_error and ...:")
+print("        # RETRY context")
+print("    else:")
+print("        # FIRST ATTEMPT context")
+print("    ")
+print("    # COMMON code (stop_cursor, cursor_thread, etc.)")
+print()
+print("Then both paths converge to common code.")
+
+print()
+print("[!] Needs proper code restructuring...")
