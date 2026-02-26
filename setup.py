@@ -1,7 +1,4 @@
-from setuptools import setup, find_packages
-
-with open("README.md", "r", encoding="utf-8") as fh:
-    long_description = fh.read()
+from setuptools import setup
 
 setup(
     name="patch-cli",
@@ -9,8 +6,6 @@ setup(
     author="steliosot",
     author_email="",
     description="A CLI tool that automatically fixes broken shell commands using OpenAI GPT-4o-mini",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
     url="https://github.com/steliosot/patch-cli",
     py_modules=["patch"],
     classifiers=[
@@ -26,8 +21,8 @@ setup(
     ],
     python_requires=">=3.8",
     install_requires=[
-        "openai>=1.0.0",
-        "tqdm>=4.0.0",
+        "openai",
+        "tqdm",
     ],
     entry_points={
         "console_scripts": [
