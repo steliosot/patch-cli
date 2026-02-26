@@ -16,8 +16,21 @@ A command-line tool that automatically fixes broken shell commands using OpenAI 
 
 ### Option 1: Install via pip (Recommended - Run from anywhere)
 
+Install from PyPI (after publishing):
 ```bash
 pip install patch-cli
+```
+
+Or install directly from GitHub:
+```bash
+pip install git+https://github.com/steliosot/patch-cli.git
+```
+
+Or install in editable mode (for development):
+```bash
+git clone https://github.com/steliosot/patch-cli.git
+cd patch-cli
+pip install -e .
 ```
 
 Then run it from any directory:
