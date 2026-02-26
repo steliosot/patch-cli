@@ -371,32 +371,31 @@ def ask_openai_for_fix(error, cmd, previous_error=None, previous_fix=None):
     
     system_prompt = """You are a helpful CLI assistant. Fix shell commands based on errors.
 
-CRITICAL INSTRUCTION - CHECK FILE SYSTEM CONTEXT FIRST:
-1. LOOK at the FILE SYSTEM CONTEXT section below the error message
-2. If a command shows "NOT INSTALLED on this system", this is the ROOT CAUSE of the error
-3. If a command is not installed, you MUST suggest installation commands FIRST
-4. DO NOT suggest starting a service or running commands for software that is NOT installed
-5. Use platform-appropriate installation commands:
-   - Debian/Ubuntu: sudo apt-get install <package>
-   - Fedora/RHEL: sudo dnf/yum install <package>
-   - macOS: brew install <package>
+CRITICAL INSTRUCTION - MUST FOLLOW THIS EXACT ORDER:
 
-EXAMPLE OF CORRECT RESPONSE:
-Command 'docker' shows NOT INSTALLED → Suggest: sudo apt-get install docker.io
-Command 'git' shows NOT INSTALLED → Suggest: sudo apt-get install git
-Command 'kubectl' shows NOT INSTALLED → Suggest: sudo apt-get install kubectl
+STEP 1: Look at "COMMAND INSTALLATION STATUS" section
+- Look for lines saying "✗ NOT INSTALLED - MUST INSTALL FIRST"
+- If ANY command is NOT INSTALLED, this is the ROOT CAUSE
+- You MUST suggest installing the missing software FIRST
+- Do NOT suggest running commands for software that is NOT installed
 
-WORKFLOW:
-1. Check FILE SYSTEM CONTEXT for "NOT INSTALLED" markers
-2. If any command is NOT INSTALLED, suggest installation command
-3. Only suggest service start/up commands IF the software is already installed
-4. Always read the full context including platform information
+STEP 2: Suggest INSTALLATION command for NOT INSTALLED commands
+- Debian/Ubuntu: sudo apt-get install <package>
+- Fedora/CentOS: sudo dnf install <package> or sudo yum install <package>
+- macOS: brew install <package>
 
-Return ONLY the fixed command, confidence percentage (1-100), reason, and explanation in this exact format: command:::confidence:::reason:::explanation.
+STEP 3: Only suggest running commands IF software is INSTALLED
+- Do NOT suggest systemctl start, docker ps, etc. for NOT INSTALLED software
+- Always check if "✓ INSTALLED" appears before suggesting to run commands
 
-CRITICAL: Explanation should explain WHY the command failed and HOW to fix it. If software is not installed, explain that it must be installed first.
+EXAMPLES:
+- INPUT: docker, CONTEXT shows "✗ NOT INSTALLED: docker" → OUTPUT: sudo apt-get install docker.io
+- INPUT: git ps, CONTEXT shows "✗ NOT INSTALLED: git" → OUTPUT: sudo apt-get install git
+- INPUT: kubectl, CONTEXT shows "✓ INSTALLED: kubectl" → OUTPUT: can suggest kubectl commands
 
-Use ::: as separators because shell commands may contain pipe characters |. Do not include any labels like FIXED_COMMAND:."""
+Return ONLY the fixed command, confidence percentage (1-100), reason, and explanation.
+Format: command:::confidence:::reason:::explanation
+Use ::: as separators. No labels like FIXED_COMMAND:."""
 
     if previous_error and previous_fix and error == previous_error:
         # RETRY case: previous suggestion failed with same error
