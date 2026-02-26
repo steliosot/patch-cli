@@ -609,16 +609,54 @@ def show_logo():
 """
     print(logo)
 
+def print_help():
+    print("""
+Patch CLI - Fix Broken Shell Commands using AI
+
+USAGE:
+    patch <command>         Fix a broken shell command
+    patch --help            Show this help message
+    patch --version         Show version information
+
+EXAMPLES:
+    patch "sudo adduser yoda"
+    patch "docker ps"
+    patch "cd /home/yoda"
+
+FEATURES:
+    - AI-powered command fixing using OpenAI GPT-4o-mini
+    - Confidence scoring (High/Medium/Low)
+    - Platform-aware fixes (macOS/Linux)
+    - Interactive command suggestions
+    - Error explanations
+    - File system context awareness
+
+INSTALLATION:
+    pip install --break-system-packages git+https://github.com/steliosot/patch-cli.git
+
+REQUIREMENTS:
+    - Python 3.8+
+    - OpenAI API key (set with: export OPENAI_API_KEY="sk-...")
+
+For more information: https://github.com/steliosot/patch-cli
+""")
+
 def main():
+    # Check for help flag
+    if len(sys.argv) == 2 and sys.argv[1] in ['--help', '-h', 'help']:
+        print_help()
+        sys.exit(0)
+    
     show_logo()
+    
+    if len(sys.argv) < 2:
+        print('[!] Usage: patch <command>')
+        print('[!] Run: patch --help for more information')
+        sys.exit(1)
     
     api_key = get_api_key()
     if not api_key:
         print('[!] OpenAI API key required')
-        sys.exit(1)
-    
-    if len(sys.argv) < 2:
-        print('[!] Usage: python patch.py <command>')
         sys.exit(1)
     
     original_cmd = ' '.join(sys.argv[1:])
