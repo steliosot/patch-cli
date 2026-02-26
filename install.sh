@@ -6,21 +6,14 @@ echo "  Patch CLI Installer"
 echo "=========================================="
 echo ""
 
-# Check Python version
-echo "[1/5] Checking Python version..."
-if ! command -v python3 &> /dev/null; then
-    echo "[ERROR] Python 3 not found. Please install Python 3.8 or later"
+PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+echo "Found Python $PYTHON_VERSION"
+
+REQUIRED="3.8"
+if [ "$(printf '%s\n' "$REQUIRED" "$PYTHON_VERSION" | sort -V | head -n1)" != "$REQUIRED" ]; then
+    echo "[ERROR] Python $REQUIRED or later required (found $PYTHON_VERSION)"
     exit 1
 fi
-
-PYTHON_VERSION=$(python3 -c 'import sys; print(sys.version_info.major)')
-echo "Found Python 3.$PYTHON_VERSION"
-
-if [ "$PYTHON_VERSION" -lt 8 ]; then
-    echo "[ERROR] Python 3.8 or later required (found 3.$PYTHON_VERSION)"
-    exit 1
-fi
-echo "✓ Python version OK"
 
 # Install dependencies
 echo ""
