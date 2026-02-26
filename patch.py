@@ -517,8 +517,9 @@ def main():
         attempt += 1
         returncode, output, is_interactive = execute_command(cmd, check_for_sudo=True)
         
-        # If user aborted early (returncode is None), exit
-        if returncode is None:
+        # If user aborted early (returncode is None or output is None), exit
+        if returncode is None or output is None:
+            print('[!] Command aborted by user.')
             return
         
         if returncode == 0:
