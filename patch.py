@@ -375,53 +375,49 @@ def ask_openai_for_fix(error, cmd, previous_error=None, previous_fix=None):
     
     system_prompt = """You are a helpful CLI assistant. Fix shell commands based on errors.
 
-IMPORTANT CONTEXT RULES:
-1. ALWAYS read the provided: Platform, Application, Error type, and File system context
-2. CRITICAL: Check FILE SYSTEM CONTEXT to see if commands are installed:
-   - If a command shows "NOT INSTALLED", you MUST suggest how to install it
-   - If a service doesn't exist, suggest installing the package first
-   - Use platform-appropriate installation commands (apt-get, dnf, yum, brew)
-3. ALWAYS suggest PLATFORM-APPROPRIATE fixes:
-   - macOS: Use open-a, launchctl, brew for packages
-   - Linux: Use systemctl, service, apt, yum, dnf for services
-   - DO NOT suggest macOS fixes for Linux or vice versa
-4. Application-specific commands:
-   - Docker: macOS uses open-a Docker Desktop app, Linux requires installation with apt-get/dnf/yum THEN systemctl start
-   - Git: Platform-agnostic (works everywhere)
-   - Package managers: Use platform-appropriate tools
-5. If retrying a previously failed suggestion, CLEARLY state it did NOT work and suggest a DIFFERENT approach
-6. CRITICAL: Use the file system context to understand:
-   - Where the user currently is (current working directory)
-   - What directories/files actually exist
-   - What is available in the current and target directories
-   - Whether binaries/commands are installed on the system
-   - For path-related errors (cd, ls, file access), check if the path exists and suggest:
-     * Correct path if directory exists
-     * Suggest creating directory if it doesn't exist make sense
-     * Suggest using current directory or parent directory if target doesn't exist
+CRITICAL INSTRUCTION - CHECK FILE SYSTEM CONTEXT FIRST:
+1. LOOK at the FILE SYSTEM CONTEXT section below the error message
+2. If a command shows "NOT INSTALLED on this system", this is the ROOT CAUSE of the error
+3. If a command is not installed, you MUST suggest installation commands FIRST
+4. DO NOT suggest starting a service or running commands for software that is NOT installed
+5. Use platform-appropriate installation commands:
+   - Debian/Ubuntu: sudo apt-get install <package>
+   - Fedora/RHEL: sudo dnf/yum install <package>
+   - macOS: brew install <package>
+
+EXAMPLE OF CORRECT RESPONSE:
+Command 'docker' shows NOT INSTALLED → Suggest: sudo apt-get install docker.io
+Command 'git' shows NOT INSTALLED → Suggest: sudo apt-get install git
+Command 'kubectl' shows NOT INSTALLED → Suggest: sudo apt-get install kubectl
+
+WORKFLOW:
+1. Check FILE SYSTEM CONTEXT for "NOT INSTALLED" markers
+2. If any command is NOT INSTALLED, suggest installation command
+3. Only suggest service start/up commands IF the software is already installed
+4. Always read the full context including platform information
 
 Return ONLY the fixed command, confidence percentage (1-100), reason, and explanation in this exact format: command:::confidence:::reason:::explanation.
 
-IMPORTANT: Explanation should be 4-5 simple sentences in plain English explaining what the error is and its impact.
+CRITICAL: Explanation should explain WHY the command failed and HOW to fix it. If software is not installed, explain that it must be installed first.
 
-IMPORTANT: Use ::: as separators because shell commands may contain pipe characters |. Do not include any labels like FIXED_COMMAND:.
-Example: git push:::95:::typo fix:::You typed git push incorrectly, which caused this error. The command failed because a typo prevented it from running properly. This means your changes were not uploaded to the remote repository. You need to fix the command to successfully push your code."""
+Use ::: as separators because shell commands may contain pipe characters |. Do not include any labels like FIXED_COMMAND:."""
 
     if previous_error and previous_fix and error == previous_error:
         # RETRY case: previous suggestion failed with same error
         context_parts = [
-            f"\n",
             f"CRITICAL: RETRYING - Previous Suggestion FAILED AGAIN\n",
-            f"═════════════════════════════════════════════════════════════════════════════\n",
             f"PREVIOUS SUGGESTION: {previous_fix}\n",
             f"WAS ATTEMPTED: {cmd}\n",
-            f"RESULT: FAILED with the SAME ERROR (shown below)\n",
-            f"═════════════════════════════════════════════════════════════════════════════\n",
+            f"RESULT: FAILED with the SAME ERROR\n",
             f"\n",
-            f"IMPORTANT: Your previous fix DID NOT WORK. The system shows the SAME exact error.\n",
-            f"YOU MUST SUGGEST A COMPLETELY DIFFERENT APPROACH. Do not repeat the same type of fix.\n",
+            f"YOU MUST SUGGEST A COMPLETELY DIFFERENT APPROACH.\n",
             f"\n",
+            f"--- FILE SYSTEM CONTEXT ---\n",
+            f"{file_system_context}\n",
+            f"\n",
+            f"--- ERROR ---\n",
             f"Platform: {platform_info}\n",
+            f"Error message: {error}\n",
         ]
         
         if app_info:
@@ -429,29 +425,14 @@ Example: git push:::95:::typo fix:::You typed git push incorrectly, which caused
         if error_type != 'other':
             context_parts.append(f"Error type: {error_type}\n")
         
-        context_parts.append(f"\n--- CURRENT FAILURE CONTEXT ---\n")
-        context_parts.append(f"Platform is {platform_info}.\n")
-        context_parts.append(f"Error message: {error}\n")
-        
-        context_parts.append(f"\n")
-        context_parts.append(f"--- FILE SYSTEM CONTEXT (check if commands are installed) ---\n")
-        context_parts.append(f"{file_system_context}\n")
-        
-        context_parts.append(f"\n")
-        context_parts.append(f"--- INSTRUCTIONS FOR THIS RETRY ---\n")
-        context_parts.append(f"1. The previous fix '{previous_fix}' FAILED and produced the SAME error.\n")
-        context_parts.append(f"2. You MUST suggest a DIFFERENT solution entirely.\n")
-        context_parts.append(f"3. If the command is not installed (see FILE SYSTEM CONTEXT), suggest HOW TO INSTALL IT.\n")
-        context_parts.append(f"4. If the service doesn't exist, suggest installing the package first.\n")
-        context_parts.append(f"5. Check the FILE SYSTEM CONTEXT - if a command shows 'NOT INSTALLED', you must suggest installation commands.\n")
-        context_parts.append(f"\n")
-        context_parts.append(f"DO NOT simply add 'sudo' or change command order - suggest a fundamentally different approach.\n")
-        context_parts.append(f"\n")
-        
         user_msg = "".join(context_parts)
     else:
         # FIRST attempt: no previous suggestions
         context_parts = [
+            f"--- FILE SYSTEM CONTEXT ---\n",
+            f"{file_system_context}\n",
+            f"\n",
+            f"--- ERROR ---\n",
             f"Command that failed: {cmd}\n",
             f"Platform: {platform_info}\n",
             f"Error: {error}\n",
@@ -461,7 +442,6 @@ Example: git push:::95:::typo fix:::You typed git push incorrectly, which caused
         if error_type != 'other':
             context_parts.append(f"Error type: {error_type}\n")
             context_parts.append("Suggested approach: Focus on error type related issues.\n")
-        context_parts.append(f"\n--- FILE SYSTEM CONTEXT ---\n{file_system_context}\n")
         user_msg = "".join(context_parts)
     
     global stop_cursor
