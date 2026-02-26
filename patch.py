@@ -6,6 +6,7 @@ import threading
 import time
 import platform
 import re
+import shutil
 from openai import OpenAI, AuthenticationError, APITimeoutError, RateLimitError, APIConnectionError, APIError
 
 stop_cursor = False
@@ -136,6 +137,22 @@ def execute_command(cmd, check_for_sudo=False, force_interactive=False):
     except Exception as e:
         return None, str(e), False
 
+def is_command_installed(command):
+    """Check if a binary/command is installed on the system"""
+    # Try using shutil.which
+    result = shutil.which(command)
+    if result:
+        return True
+    
+    # Fallback to 'command -v' check
+    try:
+        result = subprocess.run(['command', '-v', command], capture_output=True, text=True)
+        return result.returncode == 0
+    except:
+        pass
+    
+    return False
+
 def get_file_system_context(cmd):
     """Gather information about the current directory and file structure"""
     context = []
@@ -144,6 +161,19 @@ def get_file_system_context(cmd):
         # Current working directory
         cwd = os.getcwd()
         context.append(f"Current working directory: {cwd}")
+        
+        # Detect binaries/commands in the user's command
+        import shlex
+        parts = shlex.split(cmd)
+        for part in parts:
+            # Skip flags and common built-ins
+            if part.startswith('-') or part in ['sudo', 'python', 'python3', 'bash', 'sh', 'cd', 'echo', '||', '&&', ';']:
+                continue
+            
+            # Check if this is a command/binary
+            if '/' not in part and len(part) > 1 and part.isalnum():
+                installed = is_command_installed(part)
+                context.append(f"Command '{part}': {'INSTALLED' if installed else 'NOT INSTALLED on this system'}")
         
         # List contents of current directory (first level only, max 20 items)
         try:
@@ -347,19 +377,24 @@ def ask_openai_for_fix(error, cmd, previous_error=None, previous_fix=None):
 
 IMPORTANT CONTEXT RULES:
 1. ALWAYS read the provided: Platform, Application, Error type, and File system context
-2. ALWAYS suggest PLATFORM-APPROPRIATE fixes:
+2. CRITICAL: Check FILE SYSTEM CONTEXT to see if commands are installed:
+   - If a command shows "NOT INSTALLED", you MUST suggest how to install it
+   - If a service doesn't exist, suggest installing the package first
+   - Use platform-appropriate installation commands (apt-get, dnf, yum, brew)
+3. ALWAYS suggest PLATFORM-APPROPRIATE fixes:
    - macOS: Use open-a, launchctl, brew for packages
    - Linux: Use systemctl, service, apt, yum, dnf for services
    - DO NOT suggest macOS fixes for Linux or vice versa
-3. Application-specific commands:
-   - Docker: macOS uses open-a Docker Desktop app, Linux uses systemctl start docker
+4. Application-specific commands:
+   - Docker: macOS uses open-a Docker Desktop app, Linux requires installation with apt-get/dnf/yum THEN systemctl start
    - Git: Platform-agnostic (works everywhere)
    - Package managers: Use platform-appropriate tools
-   4. If retrying a previously failed suggestion, CLEARLY state it did NOT work
-5. CRITICAL: Use the file system context to understand:
+5. If retrying a previously failed suggestion, CLEARLY state it did NOT work and suggest a DIFFERENT approach
+6. CRITICAL: Use the file system context to understand:
    - Where the user currently is (current working directory)
    - What directories/files actually exist
    - What is available in the current and target directories
+   - Whether binaries/commands are installed on the system
    - For path-related errors (cd, ls, file access), check if the path exists and suggest:
      * Correct path if directory exists
      * Suggest creating directory if it doesn't exist make sense
@@ -375,30 +410,44 @@ Example: git push:::95:::typo fix:::You typed git push incorrectly, which caused
     if previous_error and previous_fix and error == previous_error:
         # RETRY case: previous suggestion failed with same error
         context_parts = [
-            f"PREVIOUS SUGGESTION THAT FAILED: {previous_fix}\n",
-            f"This fix DID NOT WORK and produced the SAME ERROR.\n",
-            f"Command attempted: {cmd}\n",
+            f"\n",
+            f"CRITICAL: RETRYING - Previous Suggestion FAILED AGAIN\n",
+            f"═════════════════════════════════════════════════════════════════════════════\n",
+            f"PREVIOUS SUGGESTION: {previous_fix}\n",
+            f"WAS ATTEMPTED: {cmd}\n",
+            f"RESULT: FAILED with the SAME ERROR (shown below)\n",
+            f"═════════════════════════════════════════════════════════════════════════════\n",
+            f"\n",
+            f"IMPORTANT: Your previous fix DID NOT WORK. The system shows the SAME exact error.\n",
+            f"YOU MUST SUGGEST A COMPLETELY DIFFERENT APPROACH. Do not repeat the same type of fix.\n",
+            f"\n",
             f"Platform: {platform_info}\n",
         ]
+        
         if app_info:
             context_parts.append(f"Application: {app_info}\n")
         if error_type != 'other':
             context_parts.append(f"Error type: {error_type}\n")
         
-        # Platform-specific guidance
-        context_parts.append("CRITICAL INSTRUCTION: You suggested a tool/command that does not exist on this platform.\n")
-        context_parts.append(f"Platform is {platform_info}. See the error message above.\n")
-        context_parts.append("REQUIRE: Suggest a DIFFERENT approach using platform-appropriate tools.\n")
-        context_parts.append(f"Do NOT suggest {previous_fix} or similar Linux/Unix commands.\n")
-        context_parts.append("Platform-specific guidance:\n")
-        if 'macOS' in platform_info:
-            context_parts.append("  - macOS: Use open-a to open apps, brew for packages, launchctl for services\n")
-        elif 'Linux' in platform_info:
-            context_parts.append("  - Linux: Use systemctl, apt, yum, dnf for services and packages\n")
-        
+        context_parts.append(f"\n--- CURRENT FAILURE CONTEXT ---\n")
+        context_parts.append(f"Platform is {platform_info}.\n")
         context_parts.append(f"Error message: {error}\n")
-        context_parts.append("Please suggest a DIFFERENT, platform-appropriate solution.\n")
-        context_parts.append(f"\n--- FILE SYSTEM CONTEXT ---\n{file_system_context}\n")
+        
+        context_parts.append(f"\n")
+        context_parts.append(f"--- FILE SYSTEM CONTEXT (check if commands are installed) ---\n")
+        context_parts.append(f"{file_system_context}\n")
+        
+        context_parts.append(f"\n")
+        context_parts.append(f"--- INSTRUCTIONS FOR THIS RETRY ---\n")
+        context_parts.append(f"1. The previous fix '{previous_fix}' FAILED and produced the SAME error.\n")
+        context_parts.append(f"2. You MUST suggest a DIFFERENT solution entirely.\n")
+        context_parts.append(f"3. If the command is not installed (see FILE SYSTEM CONTEXT), suggest HOW TO INSTALL IT.\n")
+        context_parts.append(f"4. If the service doesn't exist, suggest installing the package first.\n")
+        context_parts.append(f"5. Check the FILE SYSTEM CONTEXT - if a command shows 'NOT INSTALLED', you must suggest installation commands.\n")
+        context_parts.append(f"\n")
+        context_parts.append(f"DO NOT simply add 'sudo' or change command order - suggest a fundamentally different approach.\n")
+        context_parts.append(f"\n")
+        
         user_msg = "".join(context_parts)
     else:
         # FIRST attempt: no previous suggestions
