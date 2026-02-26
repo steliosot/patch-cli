@@ -16,21 +16,18 @@ A command-line tool that automatically fixes broken shell commands using OpenAI 
 
 ### Option 1: Install via pip (Recommended - Run from anywhere)
 
-Install from PyPI (after publishing):
+Install from GitHub:
 ```bash
-pip install patch-cli
+pip install --break-system-packages git+https://github.com/steliosot/patch-cli.git
 ```
 
-Or install directly from GitHub:
-```bash
-pip install git+https://github.com/steliosot/patch-cli.git
-```
+Note: On Debian/Ubuntu/Mint with externally-managed Python environments, use `--break-system-packages` flag.
 
 Or install in editable mode (for development):
 ```bash
 git clone https://github.com/steliosot/patch-cli.git
 cd patch-cli
-pip install -e .
+pip install -e . --break-system-packages
 ```
 
 Then run it from any directory:
@@ -61,15 +58,7 @@ pip install -e .
 When new features are added, update easily:
 
 ```bash
-pip install --upgrade patch-cli
-```
-
-Or from the git repository:
-
-```bash
-git clone https://github.com/steliosot/patch-cli.git
-cd patch-cli
-pip install -e .
+pip install --upgrade --break-system-packages git+https://github.com/steliosot/patch-cli.git
 ```
 
 ---
@@ -220,6 +209,45 @@ python3 -m pytest test_*.py -v
 # LSP/syntax check
 python3 lsp_checker.py
 ```
+
+---
+
+## Troubleshooting
+
+### "externally-managed-environment" Error (Debian/Ubuntu/Mint)
+
+Debian-based systems protect Python environments. To install:
+
+```bash
+pip install --break-system-packages git+https://github.com/steliosot/patch-cli.git
+```
+
+Alternative: Use a virtual environment:
+```bash
+python3 -m venv ~/.patch-venv
+source ~/.patch-venv/bin/activate
+pip install git+https://github.com/steliosot/patch-cli.git
+```
+
+### "permission denied" Error
+
+Add `--break-system-packages` flag to pip install commands (Debian/Ubuntu/Mint).
+
+### "patch: command not found"
+
+Use `patch` (not `patch.py`) if installed via pip. Or reinstall:
+```bash
+pip install -e . --break-system-packages
+```
+
+### OpenAI API Key Not Found
+
+Set your OpenAI API key:
+```bash
+export OPENAI_API_KEY="sk-your-key-here"
+```
+
+Get your key at: https://platform.openai.com/api-keys
 
 ---
 
