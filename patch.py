@@ -280,8 +280,12 @@ IMPORTANT CONTEXT RULES:
    - Package managers: Use platform-appropriate tools
   4. If retrying a previously failed suggestion, CLEARLY state it did NOT work
 
-Return ONLY the fixed command, confidence percentage (1-100), and reason in this exact format: command:::confidence:::reason.
-IMPORTANT: Use ::: as separator because shell commands may contain pipe characters |. Do not include any labels like FIXED_COMMAND:. Example: git push:::95:::obvious typo fix"""
+Return ONLY the fixed command, confidence percentage (1-100), reason, and explanation in this exact format: command:::confidence:::reason:::explanation.
+
+IMPORTANT: Explanation should be 4-5 simple sentences in plain English explaining what the error is and its impact.
+
+IMPORTANT: Use ::: as separators because shell commands may contain pipe characters |. Do not include any labels like FIXED_COMMAND:.
+Example: git push:::95:::typo fix:::You typed git push incorrectly, which caused this error. The command failed because a typo prevented it from running properly. This means your changes were not uploaded to the remote repository. You need to fix the command to successfully push your code."""
 
     if previous_error and previous_fix and error == previous_error:
         # RETRY case: previous suggestion failed with same error
@@ -398,26 +402,52 @@ IMPORTANT: Use ::: as separator because shell commands may contain pipe characte
     fix = content.strip() if content else ''
     confidence = 50
     reason = ''
+    explanation = ''
     
     if not fix or not fix.strip():
-        return '', '50', ''
+        return '', '50', '', ''
     
-    # Parse "FIX:::confidence:::reason" format - supports pipes
-    reason = ''
+    # Parse "command:::confidence:::reason:::explanation" format - supports pipes
     
-    if ':::' in fix and fix.count(':::') >= 2:
-        parts = fix.rsplit(':::', 2)
+    if ':::' in fix and fix.count(':::') >= 3:
+        # New 4-field format: command:::confidence:::reason:::explanation
+        parts = fix.rsplit(':::', 3)
         command_part = parts[0].strip()
         confidence_part = parts[1].strip()
         reason = parts[2].strip() if len(parts) > 2 else ''
+        explanation = parts[3].strip() if len(parts) > 3 else ''
         
-        # Clean up command_part - remove any prefixes
         for prefix in ['FIXED_COMMAND:', 'Command:', 'Fix:', 'command:']:
             if command_part.startswith(prefix):
                 command_part = command_part[len(prefix):].strip()
         fix = command_part
         
-        # Extract confidence number
+        if confidence_part:
+            confidence_part = confidence_part.rstrip('%').strip()
+            if confidence_part.isdigit():
+                confidence = int(confidence_part)
+            else:
+                conf_lower = confidence_part.lower()
+                if 'high' in conf_lower or 'very' in conf_lower:
+                    confidence = 90
+                elif 'medium' in conf_lower or 'moderate' in conf_lower:
+                    confidence = 70
+                elif 'low' in conf_lower:
+                    confidence = 50
+                else:
+                    confidence = 50
+    elif ':::' in fix and fix.count(':::') >= 2:
+        # Old 3-field format for backward compatibility: command:::confidence:::reason
+        parts = fix.rsplit(':::', 2)
+        command_part = parts[0].strip()
+        confidence_part = parts[1].strip()
+        reason = parts[2].strip() if len(parts) > 2 else ''
+        
+        for prefix in ['FIXED_COMMAND:', 'Command:', 'Fix:', 'command:']:
+            if command_part.startswith(prefix):
+                command_part = command_part[len(prefix):].strip()
+        fix = command_part
+        
         if confidence_part:
             confidence_part = confidence_part.rstrip('%').strip()
             if confidence_part.isdigit():
@@ -459,10 +489,10 @@ IMPORTANT: Use ::: as separator because shell commands may contain pipe characte
                 else:
                     confidence = 50
     
-    return fix, str(confidence), reason
+    return fix, str(confidence), reason, explanation
 
 def interactive_menu():
-    options = ['Apply suggested fix', 'Retry (get alternative suggestion)', 'Enter custom command', 'Exit']
+    options = ['Apply suggested fix', 'Retry (get alternative suggestion)', 'Enter custom command', 'Explain the error', 'Exit']
     
     while True:
         print('\nWhat do you want to do?')
@@ -470,8 +500,8 @@ def interactive_menu():
             print(f'  [{i+1}] {option}')
         
         try:
-            choice = input('[?] Select option (1-4): ').strip()
-            if choice.isdigit() and 1 <= int(choice) <= 4:
+            choice = input('[?] Select option (1-5): ').strip()
+            if choice.isdigit() and 1 <= int(choice) <= 5:
                 return int(choice) - 1
             print('[!] Invalid selection. Please try again.')
         except (KeyboardInterrupt, EOFError):
@@ -556,7 +586,7 @@ def main():
             print('[!] Max attempts reached.')
             return
         
-        fix, confidence, reason = ask_openai_for_fix(output, cmd, previous_error, previous_fix)
+        fix, confidence, reason, explanation = ask_openai_for_fix(output, cmd, previous_error, previous_fix)
         print(f'\n[*] Suggested fix: {fix}')
         print(f'[*] Confidence: {confidence}%')
         
@@ -573,9 +603,17 @@ def main():
         
         choice = interactive_menu()
         
-        if choice == 3:
+        if choice == 4:
             print('[!] Exiting.')
             return
+        
+        if choice == 3:
+            print('\n[*] Error Explanation:')
+            print('────────────────────────')
+            print(explanation if explanation else 'No explanation available.')
+            print('────────────────────────')
+            input('\n[Press Enter to continue...] ')
+            continue
         
         if choice == 2:
             cmd = input('[->] Enter new command: ')
