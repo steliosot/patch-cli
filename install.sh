@@ -46,10 +46,13 @@ else
     exit 1
 fi
 
-# Make script executable
+# Download patch CLI files
 echo ""
-echo "[3/5] Setting up patch CLI..."
-chmod +x patch.py docker_test_suite.py lsp_checker.py
+echo "[3/5] Downloading patch CLI..."
+curl -fsSL -o patch.py https://raw.githubusercontent.com/steliosot/patch-cli/main/patch.py
+curl -fsSL -o docker_test_suite.py https://raw.githubusercontent.com/steliosot/patch-cli/main/docker_test_suite.py
+chmod +x patch.py docker_test_suite.py
+echo "✓ Files downloaded"
 
 # Create virtual environment
 echo ""
