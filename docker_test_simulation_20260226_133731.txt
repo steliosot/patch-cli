@@ -1,0 +1,82 @@
+================================================================================
+Docker Build Test Report - SIMULATION
+================================================================================
+Date: 2026-02-26 13:37:31
+Mode: Simulation (Docker daemon not available)
+================================================================================
+
+SUMMARY
+--------------------------------------------------------------------------------
+Expected Successes: 7/10 (70.0%)
+Expected Failures: 3/10 (30.0%)
+
+================================================================================
+DETAILED RESULTS
+================================================================================
+
+Iteration 1: Simple - FROM + CMD
+--------------------------------------------------------------------------------
+Lines: 3
+Status: SUCCESS
+Simulated Build Time: 0.25s
+Simulated Image ID: sha256:6293964008
+
+Iteration 2: Simple + WORKDIR
+--------------------------------------------------------------------------------
+Lines: 4
+Status: SUCCESS
+Simulated Build Time: 0.30000000000000004s
+Simulated Image ID: sha256:2087005049
+
+Iteration 3: Simple + COPY
+--------------------------------------------------------------------------------
+Lines: 5
+Status: FAILED
+Expected Error: COPY failed: no such file or directory
+
+Iteration 4: Simple + ENV
+--------------------------------------------------------------------------------
+Lines: 6
+Status: SUCCESS
+Simulated Build Time: 0.4s
+Simulated Image ID: sha256:6779350751
+
+Iteration 5: Medium - Single RUN
+--------------------------------------------------------------------------------
+Lines: 6
+Status: SUCCESS
+Simulated Build Time: 0.45s
+Simulated Image ID: sha256:6460574189
+
+Iteration 6: Medium - Multi-line RUN
+--------------------------------------------------------------------------------
+Lines: 8
+Status: SUCCESS
+Simulated Build Time: 0.5s
+Simulated Image ID: sha256:9076092666
+
+Iteration 7: Medium - EXPOSE + Volume
+--------------------------------------------------------------------------------
+Lines: 8
+Status: SUCCESS
+Simulated Build Time: 0.55s
+Simulated Image ID: sha256:1843391423
+
+Iteration 8: Large - Dependencies
+--------------------------------------------------------------------------------
+Lines: 15
+Status: FAILED
+Expected Error: COPY failed: requirements.txt: no such file
+
+Iteration 9: Large - Multi-stage
+--------------------------------------------------------------------------------
+Lines: 12
+Status: SUCCESS
+Simulated Build Time: 0.65s
+Simulated Image ID: sha256:7503455533
+
+Iteration 10: Extra - Config + Health
+--------------------------------------------------------------------------------
+Lines: 29
+Status: FAILED
+Expected Error: COPY failed: no such file or directory

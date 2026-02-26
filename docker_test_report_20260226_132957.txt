@@ -1,0 +1,221 @@
+================================================================================
+Docker Build Test Report
+================================================================================
+Date: 2026-02-26 13:29:57
+Docker Available: Yes
+Total Dockerfiles Tested: 10
+================================================================================
+
+SUMMARY
+--------------------------------------------------------------------------------
+Successful Builds: 0/10 (0.0%)
+Failed Builds: 10/10 (100.0%)
+
+Average Build Time: 0.21s
+
+================================================================================
+DETAILED RESULTS
+================================================================================
+
+Iteration 1: Simple - FROM + CMD
+--------------------------------------------------------------------------------
+Lines: 3
+Filename: Dockerfile.1
+Status: FAILED 
+Build Time: 0.37s
+Errors:
+  ERROR: Cannot connect to the Docker daemon at unix:///Users/stelios/.docker/run/docker.sock. Is the docker daemon running?
+
+Dockerfile Preview:
+ 1: FROM alpine:3.18
+ 2: CMD echo "Hello from Docker"
+ 3: 
+
+Iteration 2: Simple + WORKDIR
+--------------------------------------------------------------------------------
+Lines: 4
+Filename: Dockerfile.2
+Status: FAILED 
+Build Time: 0.18s
+Errors:
+  ERROR: Cannot connect to the Docker daemon at unix:///Users/stelios/.docker/run/docker.sock. Is the docker daemon running?
+
+Dockerfile Preview:
+ 1: FROM alpine:3.18
+ 2: WORKDIR /app
+ 3: CMD echo "Working directory set"
+ 4: 
+
+Iteration 3: Simple + COPY
+--------------------------------------------------------------------------------
+Lines: 5
+Filename: Dockerfile.3
+Status: FAILED 
+Build Time: 0.18s
+Errors:
+  ERROR: Cannot connect to the Docker daemon at unix:///Users/stelios/.docker/run/docker.sock. Is the docker daemon running?
+
+Dockerfile Preview:
+ 1: FROM alpine:3.18
+ 2: WORKDIR /app
+ 3: COPY app.py .
+ 4: CMD ["python", "app.py"]
+ 5: 
+
+Iteration 4: Simple + ENV
+--------------------------------------------------------------------------------
+Lines: 6
+Filename: Dockerfile.4
+Status: FAILED 
+Build Time: 0.19s
+Errors:
+  ERROR: Cannot connect to the Docker daemon at unix:///Users/stelios/.docker/run/docker.sock. Is the docker daemon running?
+
+Dockerfile Preview:
+ 1: FROM alpine:3.18
+ 2: WORKDIR /app
+ 3: ENV APP_NAME=testapp
+ 4: ENV DEBUG=true
+ 5: RUN echo "ENV: $APP_NAME"
+ 6: 
+
+Iteration 5: Medium - Single RUN
+--------------------------------------------------------------------------------
+Lines: 6
+Filename: Dockerfile.5
+Status: FAILED 
+Build Time: 0.18s
+Errors:
+  ERROR: Cannot connect to the Docker daemon at unix:///Users/stelios/.docker/run/docker.sock. Is the docker daemon running?
+
+Dockerfile Preview:
+ 1: FROM alpine:3.18
+ 2: WORKDIR /app
+ 3: RUN apk add --no-cache python3
+ 4: COPY requirements.txt .
+ 5: RUN pip install -r requirements.txt
+ 6: 
+
+Iteration 6: Medium - Multi-line RUN
+--------------------------------------------------------------------------------
+Lines: 8
+Filename: Dockerfile.6
+Status: FAILED 
+Build Time: 0.17s
+Errors:
+  ERROR: Cannot connect to the Docker daemon at unix:///Users/stelios/.docker/run/docker.sock. Is the docker daemon running?
+
+Dockerfile Preview:
+ 1: FROM alpine:3.18
+ 2: WORKDIR /app
+ 3: RUN apk add --no-cache \
+ 4:     python3 \
+ 5:     py3-pip \
+ 6:     && pip install --no-cache-dir Flask \
+ 7:     && rm -rf /var/cache/apk/*
+ 8: 
+
+Iteration 7: Medium - EXPOSE + Volume
+--------------------------------------------------------------------------------
+Lines: 8
+Filename: Dockerfile.7
+Status: FAILED 
+Build Time: 0.18s
+Errors:
+  ERROR: Cannot connect to the Docker daemon at unix:///Users/stelios/.docker/run/docker.sock. Is the docker daemon running?
+
+Dockerfile Preview:
+ 1: FROM alpine:3.18
+ 2: WORKDIR /app
+ 3: RUN apk add --no-cache python3
+ 4: COPY . .
+ 5: EXPOSE 8000
+ 6: VOLUME ["/app/data"]
+ 7: CMD ["python", "app.py"]
+ 8: 
+
+Iteration 8: Large - Dependencies
+--------------------------------------------------------------------------------
+Lines: 16
+Filename: Dockerfile.8
+Status: FAILED 
+Build Time: 0.18s
+Errors:
+  ERROR: Cannot connect to the Docker daemon at unix:///Users/stelios/.docker/run/docker.sock. Is the docker daemon running?
+
+Dockerfile Preview:
+ 1: FROM python:3.9-slim
+ 2: WORKDIR /app
+ 3: 
+ 4: # Install system dependencies
+ 5: RUN apt-get update && apt-get install -y \
+ 6:     gcc \
+ 7:     libc6-dev \
+ 8:     && rm -rf /var/lib/apt/lists/*
+ 9: 
+10: # Install Python dependencies
+... (6 more lines)
+
+Iteration 9: Large - Multi-stage
+--------------------------------------------------------------------------------
+Lines: 12
+Filename: Dockerfile.9
+Status: FAILED 
+Build Time: 0.25s
+Errors:
+  ERROR: Cannot connect to the Docker daemon at unix:///Users/stelios/.docker/run/docker.sock. Is the docker daemon running?
+
+Dockerfile Preview:
+ 1: FROM python:3.9-slim as builder
+ 2: WORKDIR /app
+ 3: COPY requirements.txt .
+ 4: RUN pip install --user --no-cache-dir -r requirements.txt
+ 5: 
+ 6: FROM alpine:3.18
+ 7: WORKDIR /app
+ 8: COPY --from=builder /root/.local /root/.local
+ 9: ENV PATH=/root/.local/bin:$PATH
+10: COPY . .
+... (2 more lines)
+
+Iteration 10: Extra - Config + Health
+--------------------------------------------------------------------------------
+Lines: 36
+Filename: Dockerfile.10
+Status: FAILED 
+Build Time: 0.18s
+Errors:
+  ERROR: Cannot connect to the Docker daemon at unix:///Users/stelios/.docker/run/docker.sock. Is the docker daemon running?
+
+Dockerfile Preview:
+ 1: FROM python:3.9-slim
+ 2: 
+ 3: # Install dependencies
+ 4: RUN apt-get update && apt-get install -y \
+ 5:     gcc=4:9.3.0-1ubuntu2 \
+ 6:     && rm -rf /var/lib/apt/lists/*
+ 7: 
+ 8: WORKDIR /app
+ 9: 
+10: # Copy and install requirements
+... (26 more lines)
+
+================================================================================
+COMPLEXITY ANALYSIS
+================================================================================
+
+Simple (2-4 lines):
+  Count: 2
+  Successful: 0/2
+
+Small-Medium (5-8 lines):
+  Count: 5
+  Successful: 0/5
+
+Medium-Large (9-12 lines):
+  Count: 1
+  Successful: 0/1
+
+Large (13+ lines):
+  Count: 2
+  Successful: 0/2
