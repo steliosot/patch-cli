@@ -14,52 +14,48 @@ A command-line tool that automatically fixes broken shell commands using OpenAI 
 
 ## Quick Install
 
-### Option 1: Install via pip (Recommended - Run from anywhere)
+### Install with pip (Recommended)
 
 Install from GitHub:
 ```bash
 pip install --break-system-packages git+https://github.com/steliosot/patch-cli.git
 ```
 
-Note: On Debian/Ubuntu/Mint with externally-managed Python environments, use `--break-system-packages` flag.
-
-Or install in editable mode (for development):
-```bash
-git clone https://github.com/steliosot/patch-cli.git
-cd patch-cli
-pip install -e . --break-system-packages
-```
-
-Then run it from any directory:
+This installs the `patch` command so you can run it from any directory:
 ```bash
 patch "sudo adduser yoda"
 patch "docker ps"
 patch --help
 ```
 
-### Option 2: Git clone and local install
+### Update patch-cli
 
+When new features are added, update easily:
 ```bash
-git clone https://github.com/steliosot/patch-cli.git && cd patch-cli && bash install.sh
-```
-
-### Option 3: Development install (for contributors)
-
-```bash
-git clone https://github.com/steliosot/patch-cli.git
-cd patch-cli
-pip install -e .
+pip install --upgrade --break-system-packages git+https://github.com/steliosot/patch-cli.git
 ```
 
 ---
 
-## Update patch-cli
+## Installation Options
 
-When new features are added, update easily:
+### Option 1: pip install (Recommended)
+- **Pros**: Run `patch` from any directory, easy updates
+- **Command**: `pip install --break-system-packages git+https://github.com/steliosot/patch-cli.git`
 
-```bash
-pip install --upgrade --break-system-packages git+https://github.com/steliosot/patch-cli.git
-```
+### Option 2: pip editable (Development)
+- **Pros**: Edit source code, changes take effect immediately
+- **Command**:
+  ```bash
+  git clone https://github.com/steliosot/patch-cli.git
+  cd patch-cli
+  pip install -e . --break-system-packages
+  ```
+
+### Option 3: Git clone only
+- **Pros**: Full source control, no pip
+- **Command**: `git clone https://github.com/steliosot/patch-cli.git && cd patch-cli`
+- **Run**: `./patch.py <command>`
 
 ---
 
@@ -212,15 +208,45 @@ python3 lsp_checker.py
 
 ---
 
+## Running patch-cli
+
+### After pip install
+
+Add the local bin directory to your PATH (if needed):
+```bash
+# Add to ~/.bashrc or ~/.zshrc
+export PATH="$HOME/.local/bin:$PATH"
+
+# Then run:
+patch "sudo adduser yoda"
+```
+
+Or run directly:
+```bash
+/home/stelios/.local/bin/patch "sudo adduser yoda"
+```
+
+---
+
 ## Troubleshooting
 
-### "externally-managed-environment" Error (Debian/Ubuntu/Mint)
+### Why --break-system-packages flag?
 
-Debian-based systems protect Python environments. To install:
+Debian/Ubuntu/Mint use "externally-managed-environment" to protect system Python packages. This flag allows you to install user packages safely.
 
+If you get this error:
+```
+error: externally-managed-environment
+```
+
+Use the flag:
 ```bash
 pip install --break-system-packages git+https://github.com/steliosot/patch-cli.git
 ```
+
+This is safe for user packages (applications like patch-cli).
+
+### "externally-managed-environment" Error (Debian/Ubuntu/Mint)
 
 Alternative: Use a virtual environment:
 ```bash
